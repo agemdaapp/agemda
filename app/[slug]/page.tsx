@@ -1,7 +1,5 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
 import { Calendar, Clock, Sparkles, Users } from 'lucide-react';
 import { HeaderPublica } from '@/components/whitelabel/HeaderPublica';
 import { FooterPublica } from '@/components/whitelabel/FooterPublica';
