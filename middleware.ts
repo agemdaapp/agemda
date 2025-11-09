@@ -4,30 +4,14 @@ import { TenantSlug } from './types/tenant';
 import { createServerClient } from './lib/supabase';
 
 /**
- * MIDDLEWARE DE MULTI-TENANCY
+ * MIDDLEWARE SIMPLIFICADO
  * 
- * Fluxo de detecção de subdomínios:
+ * Agora usamos rotas com slug em vez de subdomínios:
+ * - agemda.vercel.app/leticianails → página pública
+ * - agemda.vercel.app/leticianails/admin → painel admin
  * 
- * 1. Extrai o host da requisição (req.headers.get('host'))
- * 2. Analisa o host para determinar o tipo de acesso:
- *    - Landing page: agemda.com.br, www.agemda.com.br, agemda.vercel.app
- *    - Tenant: {slug}.agemda.com.br (quando configurado)
- *    - Localhost: localhost (apenas para desenvolvimento, sempre landing page)
- * 
- * 3. Casos especiais tratados:
- *    - /api/* → Sempre permite (não intercepta)
- *    - /_next/* → Sempre permite (assets do Next.js)
- *    - /favicon.ico, /robots.txt → Sempre permite
- * 
- * 4. Validação de tenant:
- *    - Se for subdomínio de tenant, verifica se existe no banco
- *    - Se não existir, retorna 404
- *    - Se existir, adiciona header x-tenant-id e x-tenant-slug
- * 
- * 5. Headers customizados adicionados:
- *    - x-tenant-id: ID do tenant no banco
- *    - x-tenant-slug: Slug do tenant (subdomínio)
- *    - x-is-landing-page: "true" ou "false"
+ * O middleware não precisa mais detectar subdomínios.
+ * A validação do tenant é feita no layout da rota [slug].
  */
 
 /**
@@ -145,81 +129,9 @@ async function validateTenant(slug: TenantSlug): Promise<{ exists: boolean; tena
  * Middleware principal
  */
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const host = request.headers.get('host') || '';
-  
-  // Permite sempre: API routes, assets do Next.js, arquivos estáticos
-  if (
-    pathname.startsWith('/api') ||
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon.ico') ||
-    pathname.startsWith('/robots.txt') ||
-    pathname.startsWith('/sitemap')
-  ) {
-    return NextResponse.next();
-  }
-  
-  const hostWithoutPort = host.split(':')[0];
-  
-  // Caso especial: localhost:3000/app → simular tenant de teste
-  if (hostWithoutPort === 'localhost' && pathname.startsWith('/app')) {
-    const response = NextResponse.next();
-    response.headers.set('x-is-landing-page', 'false');
-    response.headers.set('x-tenant-id', 'test-tenant-id');
-    response.headers.set('x-tenant-slug', 'test');
-    return response;
-  }
-
-  // Verifica se é landing page PRIMEIRO
-  if (isLandingPage(host, pathname)) {
-    const response = NextResponse.next();
-    response.headers.set('x-is-landing-page', 'true');
-    response.headers.set('x-tenant-id', '');
-    response.headers.set('x-tenant-slug', '');
-    return response;
-  }
-  
-  // Extrai subdomínio (tenant slug)
-  const subdomain = extractSubdomain(host);
-  
-  if (!subdomain) {
-    // Sem subdomínio válido mas não é landing page → pode ser erro
-    // Deixa passar e deixa o Next.js lidar com 404
-    const response = NextResponse.next();
-    response.headers.set('x-is-landing-page', 'true');
-    response.headers.set('x-tenant-id', '');
-    response.headers.set('x-tenant-slug', '');
-    return response;
-  }
-  
-  // Valida se o tenant existe no banco
-  const validation = await validateTenant(subdomain);
-  
-  if (!validation.exists) {
-    // Tenant não existe → retorna 404
-    return new NextResponse('Tenant not found', { status: 404 });
-  }
-  
-  // Tenant válido → redireciona para a rota [tenant] se necessário
-  // Se já está na rota [tenant], apenas adiciona headers
-  if (pathname === '/' || pathname === '') {
-    // Redireciona para /[tenant] onde [tenant] é o slug
-    const url = request.nextUrl.clone();
-    url.pathname = `/${subdomain}`;
-    const response = NextResponse.redirect(url);
-    response.headers.set('x-tenant-id', validation.tenantId || '');
-    response.headers.set('x-tenant-slug', subdomain);
-    response.headers.set('x-is-landing-page', 'false');
-    return response;
-  }
-  
-  // Se já está em uma rota de tenant, apenas adiciona headers
-  const response = NextResponse.next();
-  response.headers.set('x-tenant-id', validation.tenantId || '');
-  response.headers.set('x-tenant-slug', subdomain);
-  response.headers.set('x-is-landing-page', 'false');
-  
-  return response;
+  // Middleware simplificado - não precisa mais detectar subdomínios
+  // A validação do tenant é feita no layout da rota [slug]
+  return NextResponse.next();
 }
 
 /**

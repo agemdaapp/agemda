@@ -73,39 +73,31 @@ export function useAuth() {
     }
   }, []);
 
-  // Busca tenant do subdomínio se disponível
+  // Busca tenant da URL (rota [slug]) se disponível
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    // Tenta obter tenant do subdomínio via headers (middleware)
-    const getTenantFromSubdomain = () => {
-      // O middleware já injeta headers, mas no client-side precisamos extrair do hostname
-      const hostname = window.location.hostname;
-      const parts = hostname.split('.');
-      
-      // Verifica se é subdomínio do vercel.app
-      if (hostname.endsWith('.agemda.vercel.app') && parts.length === 4) {
-        const slug = parts[0];
-        if (slug && slug !== 'www' && slug !== 'api') {
-          // Busca tenant_id da API usando o slug
-          fetch(`/api/companies`)
-            .then(res => res.json())
-            .then(data => {
-              if (data.sucesso) {
-                const empresa = data.empresas.find((e: any) => e.slug === slug);
-                if (empresa) {
-                  setTenantId(empresa.id);
-                  setTenantSlug(empresa.slug);
-                  saveTenantToStorage(empresa.id, empresa.slug);
-                }
-              }
-            })
-            .catch(console.error);
-        }
-      }
-    };
+    // Extrai slug da URL (ex: /leticianails → leticianails)
+    const pathname = window.location.pathname;
+    const pathParts = pathname.split('/').filter(Boolean);
     
-    getTenantFromSubdomain();
+    // Se a primeira parte da URL não é uma rota conhecida, pode ser um slug
+    const knownRoutes = ['signup', 'login', 'planos', 'dashboard', 'api', 'admin'];
+    if (pathParts.length > 0 && !knownRoutes.includes(pathParts[0])) {
+      const slug = pathParts[0];
+      
+      // Busca tenant_id da API usando o slug
+      fetch(`/api/tenant/${slug}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.sucesso && data.empresa) {
+            setTenantId(data.empresa.id);
+            setTenantSlug(data.empresa.slug);
+            saveTenantToStorage(data.empresa.id, data.empresa.slug);
+          }
+        })
+        .catch(console.error);
+    }
   }, [saveTenantToStorage]);
 
   // Verifica sessão ao montar

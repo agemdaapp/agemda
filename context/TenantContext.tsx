@@ -72,29 +72,32 @@ const defaultCustomizacoes: Customizacoes = {
   botao_agendamento_ativo: true,
 };
 
-export function TenantProvider({ children }: { children: ReactNode }) {
-  const { tenantSlug } = useTenant();
-  const [data, setData] = useState<TenantData>({
-    empresa: null,
-    customizacoes: defaultCustomizacoes,
-    horarios: [],
-    profissionais: [],
-    servicos: [],
-  });
-  const [loading, setLoading] = useState(true);
+export function TenantProvider({ 
+  children, 
+  initialData 
+}: { 
+  children: ReactNode;
+  initialData?: TenantData;
+}) {
+  const [data, setData] = useState<TenantData>(
+    initialData || {
+      empresa: null,
+      customizacoes: defaultCustomizacoes,
+      horarios: [],
+      profissionais: [],
+      servicos: [],
+    }
+  );
+  const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
 
-  const loadTenantData = async () => {
-    if (!tenantSlug) {
-      setLoading(false);
-      return;
-    }
-
+  // Função para recarregar dados (se necessário) - não usada se initialData foi fornecido
+  const loadTenantData = async (slug: string) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/tenant/${tenantSlug}`);
+      const response = await fetch(`/api/tenant/${slug}`);
       const result = await response.json();
 
       if (result.sucesso) {
@@ -115,12 +118,18 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Se recebeu dados iniciais do servidor, usa eles
   useEffect(() => {
-    loadTenantData();
-  }, [tenantSlug]);
+    if (initialData) {
+      setData(initialData);
+      setLoading(false);
+    }
+  }, [initialData]);
 
   const refresh = async () => {
-    await loadTenantData();
+    if (data.empresa?.slug) {
+      await loadTenantData(data.empresa.slug);
+    }
   };
 
   const getCorPrimaria = () => {
