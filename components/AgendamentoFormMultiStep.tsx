@@ -9,10 +9,12 @@ import { Badge } from '@/components/ui/Badge';
 import { Toast } from '@/components/ui/Toast';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useTenant } from '@/hooks/useTenant';
+import { useTenantContext } from '@/context/TenantContext';
 import { useServicos } from '@/hooks/useServicos';
 import { useProfissionais } from '@/hooks/useProfissionais';
 import { useHorariosDisponiveis } from '@/hooks/useHorariosDisponiveis';
 import { useAgendamento } from '@/hooks/useAgendamento';
+import { BotaoPrimario } from '@/components/whitelabel/BotaoPrimario';
 
 interface AgendamentoFormData {
   servico: string | null;
@@ -27,6 +29,7 @@ interface AgendamentoFormData {
 
 export function AgendamentoFormMultiStep() {
   const { tenantId } = useTenant();
+  const { getCorPrimaria } = useTenantContext();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<AgendamentoFormData>({
     servico: null,
@@ -217,9 +220,13 @@ export function AgendamentoFormMultiStep() {
                   }}
                   className={`p-4 rounded-lg border-2 text-left transition-all ${
                     formData.servico === servico.id
-                      ? 'border-black bg-black text-white'
+                      ? 'text-white'
                       : 'border-gray-200 hover:border-gray-400'
                   }`}
+                  style={formData.servico === servico.id ? {
+                    backgroundColor: getCorPrimaria(),
+                    borderColor: getCorPrimaria(),
+                  } : {}}
                 >
                     <div className="flex items-start gap-3">
                     <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
@@ -284,9 +291,13 @@ export function AgendamentoFormMultiStep() {
                   }}
                   className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
                     formData.profissional === prof.id
-                      ? 'border-black bg-black text-white'
+                      ? 'text-white'
                       : 'border-gray-200 hover:border-gray-400'
                   }`}
+                  style={formData.profissional === prof.id ? {
+                    backgroundColor: getCorPrimaria(),
+                    borderColor: getCorPrimaria(),
+                  } : {}}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -390,9 +401,9 @@ export function AgendamentoFormMultiStep() {
               </div>
             </div>
             <div className="flex justify-end">
-              <Button onClick={handleNext} size="lg">
+              <BotaoPrimario onClick={handleNext} size="lg">
                 Próximo <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
+              </BotaoPrimario>
             </div>
           </Card>
         )}
@@ -473,7 +484,7 @@ export function AgendamentoFormMultiStep() {
                 <span className="text-sm">Receber confirmação por WhatsApp</span>
               </label>
             </div>
-            <Button onClick={handleSubmit} size="lg" className="w-full" disabled={loadingAgendamento}>
+            <BotaoPrimario onClick={handleSubmit} size="lg" className="w-full" disabled={loadingAgendamento}>
               {loadingAgendamento ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -482,7 +493,7 @@ export function AgendamentoFormMultiStep() {
               ) : (
                 'Confirmar Agendamento'
               )}
-            </Button>
+            </BotaoPrimario>
           </Card>
         )}
 
@@ -518,9 +529,9 @@ export function AgendamentoFormMultiStep() {
                 </div>
               </div>
             </Card>
-            <Button href="/" size="lg" className="w-full">
+            <BotaoPrimario onClick={() => window.location.href = '/'} size="lg" className="w-full">
               Voltar à página inicial
-            </Button>
+            </BotaoPrimario>
           </Card>
         )}
       </div>
