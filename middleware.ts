@@ -92,9 +92,16 @@ function isLandingPage(host: string, pathname: string): boolean {
   }
   
   // Domínios principais são landing page
-  if (MAIN_DOMAINS.some(domain => hostWithoutPort === domain || hostWithoutPort.endsWith(`.${domain}`))) {
-    const subdomain = extractSubdomain(host);
-    return subdomain === null;
+  for (const domain of MAIN_DOMAINS) {
+    if (hostWithoutPort === domain) {
+      // É exatamente o domínio principal → landing page
+      return true;
+    }
+    if (hostWithoutPort.endsWith(`.${domain}`)) {
+      // Tem subdomínio → não é landing page
+      const subdomain = extractSubdomain(host);
+      return subdomain === null;
+    }
   }
   
   return false;
@@ -163,7 +170,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // Verifica se é landing page
+  // Verifica se é landing page PRIMEIRO
   if (isLandingPage(host, pathname)) {
     const response = NextResponse.next();
     response.headers.set('x-is-landing-page', 'true');
@@ -176,11 +183,13 @@ export async function middleware(request: NextRequest) {
   const subdomain = extractSubdomain(host);
   
   if (!subdomain) {
-    // Sem subdomínio válido → redireciona para landing page
-    const url = request.nextUrl.clone();
-    url.host = MAIN_DOMAINS[2] || 'agemda.vercel.app'; // Usa domínio principal
-    url.pathname = '/';
-    return NextResponse.redirect(url);
+    // Sem subdomínio válido mas não é landing page → pode ser erro
+    // Deixa passar e deixa o Next.js lidar com 404
+    const response = NextResponse.next();
+    response.headers.set('x-is-landing-page', 'true');
+    response.headers.set('x-tenant-id', '');
+    response.headers.set('x-tenant-slug', '');
+    return response;
   }
   
   // Valida se o tenant existe no banco
@@ -191,7 +200,20 @@ export async function middleware(request: NextRequest) {
     return new NextResponse('Tenant not found', { status: 404 });
   }
   
-  // Tenant válido → adiciona headers e continua
+  // Tenant válido → redireciona para a rota [tenant] se necessário
+  // Se já está na rota [tenant], apenas adiciona headers
+  if (pathname === '/' || pathname === '') {
+    // Redireciona para /[tenant] onde [tenant] é o slug
+    const url = request.nextUrl.clone();
+    url.pathname = `/${subdomain}`;
+    const response = NextResponse.redirect(url);
+    response.headers.set('x-tenant-id', validation.tenantId || '');
+    response.headers.set('x-tenant-slug', subdomain);
+    response.headers.set('x-is-landing-page', 'false');
+    return response;
+  }
+  
+  // Se já está em uma rota de tenant, apenas adiciona headers
   const response = NextResponse.next();
   response.headers.set('x-tenant-id', validation.tenantId || '');
   response.headers.set('x-tenant-slug', subdomain);
