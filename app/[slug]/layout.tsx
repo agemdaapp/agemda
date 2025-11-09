@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 import { TenantProvider } from '@/context/TenantContext';
-import { AuthProvider } from '@/context/AuthContext';
 import { createServerClient } from '@/lib/supabase';
+
+export const dynamic = 'force-dynamic';
 
 interface TenantData {
   empresa: any;
@@ -23,7 +24,13 @@ async function getTenantData(slug: string): Promise<TenantData | null> {
       .eq('ativo', true)
       .single();
 
-    if (empresaError || !empresa) {
+    if (empresaError) {
+      console.error('Erro ao buscar empresa:', empresaError);
+      return null;
+    }
+
+    if (!empresa) {
+      console.log('Empresa não encontrada para slug:', slug);
       return null;
     }
 
@@ -105,21 +112,25 @@ export default async function SlugLayout({
   children: React.ReactNode;
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params;
+  try {
+    const { slug } = await params;
 
-  // Busca dados do tenant
-  const tenantData = await getTenantData(slug);
+    // Busca dados do tenant
+    const tenantData = await getTenantData(slug);
 
-  if (!tenantData || !tenantData.empresa) {
-    notFound();
-  }
+    if (!tenantData || !tenantData.empresa) {
+      console.log('Tenant não encontrado ou timeout, retornando 404 para slug:', slug);
+      notFound();
+    }
 
-  return (
-    <AuthProvider>
+    return (
       <TenantProvider initialData={tenantData}>
         {children}
       </TenantProvider>
-    </AuthProvider>
-  );
+    );
+  } catch (error) {
+    console.error('Erro no SlugLayout:', error);
+    notFound();
+  }
 }
 
