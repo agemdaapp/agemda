@@ -47,11 +47,23 @@ function getTenantFromHeaders(): Partial<TenantContext> {
   
   // Tenta extrair subdomínio
   const parts = hostname.split('.');
-  // Verifica se não é localhost e se tem mais de 2 partes (ex: leticianails.agemda.com.br)
-  // Ignora domínios da Vercel sem subdomínio (agemda.vercel.app)
+  
+  // Verifica se é subdomínio do vercel.app (ex: leticianails.agemda.vercel.app)
+  if (hostname.endsWith('.agemda.vercel.app') && parts.length === 4) {
+    const subdomain = parts[0];
+    if (subdomain && subdomain !== 'www' && subdomain !== 'api') {
+      return {
+        tenantSlug: subdomain,
+        isLandingPage: false,
+        isDevelopment: false,
+      };
+    }
+  }
+  
+  // Verifica se é subdomínio de domínio próprio (ex: leticianails.agemda.com.br)
   if (parts.length > 2 && !isLocalhost && !hostname.endsWith('.vercel.app')) {
     const subdomain = parts[0];
-    if (subdomain !== 'www') {
+    if (subdomain && subdomain !== 'www' && subdomain !== 'api') {
       return {
         tenantSlug: subdomain,
         isLandingPage: false,

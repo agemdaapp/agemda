@@ -8,8 +8,8 @@ import { createServerClient } from '@/lib/supabase';
  * 
  * RETORNO:
  * {
- *   success: true,
- *   data: [
+ *   sucesso: true,
+ *   empresas: [
  *     {
  *       id: string,
  *       name: string,
@@ -18,8 +18,7 @@ import { createServerClient } from '@/lib/supabase';
  *       plan: string,
  *       owner_email: string,
  *       vertical: string,
- *       ativo: boolean,
- *       created_at: string
+ *       subdomain_url: string
  *     }
  *   ],
  *   total: number
@@ -29,30 +28,41 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createServerClient();
 
-    // Busca todas as empresas
+    // Busca todas as empresas ativas
     const { data: companies, error } = await supabase
       .from('companies')
-      .select('id, name, slug, subdomain, plan, owner_email, vertical, ativo, created_at')
-      .order('created_at', { ascending: false });
+      .select('id, name, slug, subdomain, plan, owner_email, vertical')
+      .eq('ativo', true)
+      .order('name', { ascending: true });
 
     if (error) {
       console.error('Erro ao buscar empresas:', error);
       return NextResponse.json(
-        { success: false, message: 'Erro ao buscar empresas', error: error.message },
+        { sucesso: false, mensagem: 'Erro ao buscar empresas', error: error.message },
         { status: 500 }
       );
     }
 
+    // Formata resposta com URL do subdomínio
+    const empresasFormatadas = (companies || []).map(empresa => ({
+      id: empresa.id,
+      name: empresa.name,
+      slug: empresa.slug,
+      vertical: empresa.vertical,
+      plan: empresa.plan,
+      subdomain_url: `https://${empresa.slug}.agemda.vercel.app`,
+    }));
+
     return NextResponse.json({
-      success: true,
-      data: companies || [],
-      total: companies?.length || 0,
+      sucesso: true,
+      empresas: empresasFormatadas,
+      total: empresasFormatadas.length,
     });
 
   } catch (error: any) {
     console.error('Erro no GET /api/companies:', error);
     return NextResponse.json(
-      { success: false, message: 'Erro interno do servidor', error: error.message },
+      { sucesso: false, mensagem: 'Erro interno do servidor', error: error.message },
       { status: 500 }
     );
   }

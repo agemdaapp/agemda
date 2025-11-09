@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { TenantSlug } from './types/tenant';
+import { createServerClient } from './lib/supabase';
 
 /**
  * MIDDLEWARE DE MULTI-TENANCY
@@ -40,7 +41,10 @@ const MAIN_DOMAINS = [
 
 /**
  * Extrai o subdomínio do host
- * Exemplo: "leticianails.agemda.com.br" → "leticianails"
+ * Exemplos:
+ * - "leticianails.agemda.com.br" → "leticianails"
+ * - "leticianails.agemda.vercel.app" → "leticianails"
+ * - "localhost:3000/app" → null (landing)
  */
 function extractSubdomain(host: string): string | null {
   // Remove porta se existir
@@ -60,7 +64,16 @@ function extractSubdomain(host: string): string | null {
     const parts = hostClean.split('.');
     if (parts.length > 2) {
       // Exemplo: ["leticianails", "agemda", "com", "br"] → "leticianails"
-      return parts[0];
+      // Exemplo: ["leticianails", "agemda", "vercel", "app"] → "leticianails"
+      const subdomain = parts[0];
+      
+      // Bloqueia subdomínios reservados
+      const reserved = ['api', 'www', 'admin', 'app'];
+      if (reserved.includes(subdomain.toLowerCase())) {
+        return null;
+      }
+      
+      return subdomain;
     }
   }
   
@@ -89,28 +102,36 @@ function isLandingPage(host: string, pathname: string): boolean {
 
 /**
  * Verifica se o tenant existe no banco de dados
- * TODO: Implementar consulta ao Supabase
- * Por enquanto, retorna true para qualquer slug válido
+ * Consulta a tabela companies no Supabase
  */
 async function validateTenant(slug: TenantSlug): Promise<{ exists: boolean; tenantId?: string }> {
-  // TODO: Consultar Supabase para verificar se tenant existe
-  // const supabase = createServerClient();
-  // const { data, error } = await supabase
-  //   .from('tenants')
-  //   .select('id, status')
-  //   .eq('slug', slug)
-  //   .single();
-  
-  // Por enquanto, aceita qualquer slug que não seja vazio
   if (!slug || slug.trim() === '') {
     return { exists: false };
   }
-  
-  // Em produção, aqui faria a consulta real
-  return {
-    exists: true,
-    tenantId: `temp-${slug}`, // Placeholder
-  };
+
+  try {
+    const supabase = createServerClient();
+    
+    // Busca empresa pelo slug
+    const { data: company, error } = await supabase
+      .from('companies')
+      .select('id, ativo')
+      .eq('slug', slug)
+      .eq('ativo', true)
+      .single();
+
+    if (error || !company) {
+      return { exists: false };
+    }
+
+    return {
+      exists: true,
+      tenantId: company.id,
+    };
+  } catch (error) {
+    console.error('Erro ao validar tenant:', error);
+    return { exists: false };
+  }
 }
 
 /**
@@ -133,6 +154,15 @@ export async function middleware(request: NextRequest) {
   
   const hostWithoutPort = host.split(':')[0];
   
+  // Caso especial: localhost:3000/app → simular tenant de teste
+  if (hostWithoutPort === 'localhost' && pathname.startsWith('/app')) {
+    const response = NextResponse.next();
+    response.headers.set('x-is-landing-page', 'false');
+    response.headers.set('x-tenant-id', 'test-tenant-id');
+    response.headers.set('x-tenant-slug', 'test');
+    return response;
+  }
+
   // Verifica se é landing page
   if (isLandingPage(host, pathname)) {
     const response = NextResponse.next();
@@ -148,6 +178,7 @@ export async function middleware(request: NextRequest) {
   if (!subdomain) {
     // Sem subdomínio válido → redireciona para landing page
     const url = request.nextUrl.clone();
+    url.host = MAIN_DOMAINS[2] || 'agemda.vercel.app'; // Usa domínio principal
     url.pathname = '/';
     return NextResponse.redirect(url);
   }
@@ -185,4 +216,5 @@ export const config = {
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };
+
 
