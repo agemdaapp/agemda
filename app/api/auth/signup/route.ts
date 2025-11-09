@@ -84,8 +84,9 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    // Verifica se email já existe
-    const { data: existingUser } = await supabase.auth.admin.getUserByEmail(email);
+    // Verifica se email já existe usando listUsers
+    const { data: { users } } = await supabase.auth.admin.listUsers();
+    const existingUser = users?.find(user => user.email === email);
     if (existingUser) {
       return NextResponse.json(
         { success: false, message: 'Email já cadastrado' },

@@ -44,11 +44,12 @@ import { validateTenant } from '@/lib/middleware-tenant';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const tenantId = request.headers.get('x-tenant-id');
-    const agendamentoId = params.id;
+    const { id } = await params;
+    const agendamentoId = id;
 
     // Valida tenant_id
     const validation = await validateTenant(tenantId, null);
