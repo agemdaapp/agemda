@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
         cliente_telefone,
         data_hora,
         status,
-        servico:servicos(id, nome, duracao_minutos),
+        servico:servicos(id, nome, duracao_minutos, preco),
         profissional:profissionais(id, nome)
       `)
       .eq('tenant_id', tenantId)

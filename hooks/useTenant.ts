@@ -42,22 +42,14 @@ function getTenantFromHeaders(): Partial<TenantContext> {
   
   // Fallback: tenta extrair do hostname
   const hostname = window.location.hostname;
-  const isLocalhost = hostname === 'localhost';
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
   const pathname = window.location.pathname;
-  
-  // Caso especial: localhost:3000/app/* → tenant local-test
-  if (isLocalhost && pathname.startsWith('/app')) {
-    return {
-      tenantId: 'local-test-id',
-      tenantSlug: 'local-test',
-      isLandingPage: false,
-      isDevelopment: true,
-    };
-  }
   
   // Tenta extrair subdomínio
   const parts = hostname.split('.');
-  if (parts.length > 2 && !isLocalhost) {
+  // Verifica se não é localhost e se tem mais de 2 partes (ex: leticianails.agemda.com.br)
+  // Ignora domínios da Vercel sem subdomínio (agemda.vercel.app)
+  if (parts.length > 2 && !isLocalhost && !hostname.endsWith('.vercel.app')) {
     const subdomain = parts[0];
     if (subdomain !== 'www') {
       return {
@@ -68,6 +60,17 @@ function getTenantFromHeaders(): Partial<TenantContext> {
     }
   }
   
+  // Se for domínio da Vercel sem subdomínio, é landing page
+  if (hostname.endsWith('.vercel.app') && parts.length === 3) {
+    return {
+      tenantId: null,
+      tenantSlug: null,
+      isLandingPage: true,
+      isDevelopment: false,
+    };
+  }
+  
+  // Se for localhost, ainda pode ser desenvolvimento, mas não retorna tenant específico
   // Default: landing page
   return {
     tenantId: null,

@@ -1,48 +1,21 @@
 'use client';
 
-/**
- * HOOK: useHorariosDisponiveis
- * 
- * Busca horários disponíveis para um profissional em uma data
- * 
- * USO:
- * const { horarios, loading, error } = useHorariosDisponiveis(
- *   tenantId, 
- *   profissional_id, 
- *   data, 
- *   servico_id
- * );
- * 
- * RETORNO:
- * - horarios: Array de horários disponíveis
- * - loading: boolean
- * - error: string | null
- * 
- * CHAMADA:
- * POST /api/horarios-disponiveis
- * Body: { profissional_id, data, servico_id }
- * Headers: x-tenant-id
- * 
- * RETORNO DA API:
- * {
- *   sucesso: true,
- *   horarios: [
- *     { hora: "09:00", disponivel: true },
- *     { hora: "09:30", disponivel: false, motivo: "Agendado" },
- *     { hora: "10:00", disponivel: true }
- *   ],
- *   data_formatada: "15/01/2024",
- *   dia_semana: "Terça-feira",
- *   total_slots: 16,
- *   slots_disponiveis: 12
- * }
- * 
- * COMPORTAMENTO:
- * - Só busca se profissional_id, data e servico_id fornecidos
- * - Refresca automaticamente quando data muda
- * - Retorna array vazio se nenhum horário disponível
- * - Mostra loading durante busca
- */
+import { useState, useEffect } from 'react';
+
+interface HorarioDisponivel {
+  hora: string;
+  disponivel: boolean;
+  motivo?: string;
+}
+
+interface HorariosDisponiveisResponse {
+  sucesso: boolean;
+  horarios: HorarioDisponivel[];
+  data_formatada?: string;
+  dia_semana?: string;
+  total_slots?: number;
+  slots_disponiveis?: number;
+}
 
 export function useHorariosDisponiveis(
   tenantId: string | null,
@@ -50,17 +23,51 @@ export function useHorariosDisponiveis(
   data: string | null,
   servicoId: string | null
 ) {
-  // Implementação:
-  // - useEffect para buscar quando qualquer parâmetro muda
-  // - useState para horarios, loading, error
-  // - fetch para POST /api/horarios-disponiveis
-  // - Retorna { horarios, loading, error }
-  // - Só busca se todos os parâmetros fornecidos
-  
-  return {
-    horarios: [],
-    loading: false,
-    error: null,
-  };
-}
+  const [horarios, setHorarios] = useState<HorarioDisponivel[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!tenantId || !profissionalId || !data || !servicoId) {
+      setHorarios([]);
+      return;
+    }
+
+    const fetchHorarios = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch('/api/horarios-disponiveis', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-tenant-id': tenantId,
+          },
+          body: JSON.stringify({
+            profissional_id: profissionalId,
+            data: data,
+            servico_id: servicoId,
+          }),
+        });
+
+        const responseData: HorariosDisponiveisResponse = await response.json();
+
+        if (responseData.sucesso) {
+          setHorarios(responseData.horarios || []);
+        } else {
+          setError('Erro ao buscar horários disponíveis');
+          setHorarios([]);
+        }
+      } catch (err: any) {
+        setError(err.message || 'Erro ao buscar horários disponíveis');
+        setHorarios([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHorarios();
+  }, [tenantId, profissionalId, data, servicoId]);
+
+  return { horarios, loading, error };
+}

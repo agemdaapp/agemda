@@ -40,7 +40,12 @@ export function useAuth() {
   const [tenantSlug, setTenantSlug] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const supabase = useMemo(() => createBrowserClient(), []);
+  const supabase = useMemo(() => {
+    if (typeof window === 'undefined') {
+      return null as any; // Não executa no SSR
+    }
+    return createBrowserClient();
+  }, []);
 
   // Carrega tenant_id do localStorage
   const loadTenantFromStorage = useCallback(() => {
@@ -70,6 +75,8 @@ export function useAuth() {
 
   // Verifica sessão ao montar
   useEffect(() => {
+    if (!supabase) return;
+    
     const checkSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -104,8 +111,10 @@ export function useAuth() {
     checkSession();
 
     // Escuta mudanças de autenticação
+    if (!supabase) return;
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (event: string, session: any) => {
         if (session?.user) {
           setUser(session.user);
           loadTenantFromStorage();
@@ -126,6 +135,10 @@ export function useAuth() {
 
   // Função de login
   const login = useCallback(async (email: string, password: string) => {
+    if (!supabase) {
+      return { success: false, error: 'Cliente não inicializado' };
+    }
+    
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
@@ -166,6 +179,10 @@ export function useAuth() {
     vertical: string;
     plano: string;
   }) => {
+    if (!supabase) {
+      return { success: false, error: 'Cliente não inicializado' };
+    }
+    
     try {
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
@@ -200,6 +217,8 @@ export function useAuth() {
 
   // Função de logout
   const logout = useCallback(async () => {
+    if (!supabase) return;
+    
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',

@@ -9,9 +9,9 @@ import { TenantSlug } from './types/tenant';
  * 
  * 1. Extrai o host da requisição (req.headers.get('host'))
  * 2. Analisa o host para determinar o tipo de acesso:
- *    - Landing page: agemda.com.br, www.agemda.com.br
- *    - Tenant: {slug}.agemda.com.br
- *    - Localhost: localhost:3000 (landing) ou localhost:3000/app/* (tenant local-test)
+ *    - Landing page: agemda.com.br, www.agemda.com.br, agemda.vercel.app
+ *    - Tenant: {slug}.agemda.com.br (quando configurado)
+ *    - Localhost: localhost (apenas para desenvolvimento, sempre landing page)
  * 
  * 3. Casos especiais tratados:
  *    - /api/* → Sempre permite (não intercepta)
@@ -32,8 +32,11 @@ import { TenantSlug } from './types/tenant';
 /**
  * Domínios principais da aplicação
  */
-const MAIN_DOMAINS = ['agemda.com.br', 'www.agemda.com.br'];
-const LOCALHOST = 'localhost:3000';
+const MAIN_DOMAINS = [
+  'agemda.com.br', 
+  'www.agemda.com.br',
+  'agemda.vercel.app', // Domínio temporário da Vercel
+];
 
 /**
  * Extrai o subdomínio do host
@@ -43,8 +46,8 @@ function extractSubdomain(host: string): string | null {
   // Remove porta se existir
   const hostWithoutPort = host.split(':')[0];
   
-  // Caso especial: localhost
-  if (hostWithoutPort === 'localhost') {
+  // Caso especial: localhost (apenas para desenvolvimento)
+  if (hostWithoutPort === 'localhost' || hostWithoutPort === '127.0.0.1') {
     return null;
   }
   
@@ -70,8 +73,8 @@ function extractSubdomain(host: string): string | null {
 function isLandingPage(host: string, pathname: string): boolean {
   const hostWithoutPort = host.split(':')[0];
   
-  // localhost sem /app/* é landing page
-  if (hostWithoutPort === 'localhost' && !pathname.startsWith('/app')) {
+  // localhost é sempre landing page (desenvolvimento)
+  if (hostWithoutPort === 'localhost' || hostWithoutPort === '127.0.0.1') {
     return true;
   }
   
@@ -129,16 +132,6 @@ export async function middleware(request: NextRequest) {
   }
   
   const hostWithoutPort = host.split(':')[0];
-  const isLocalhost = hostWithoutPort === 'localhost';
-  
-  // Caso especial: localhost:3000/app/* → tenant "local-test"
-  if (isLocalhost && pathname.startsWith('/app')) {
-    const response = NextResponse.next();
-    response.headers.set('x-tenant-id', 'local-test-id');
-    response.headers.set('x-tenant-slug', 'local-test');
-    response.headers.set('x-is-landing-page', 'false');
-    return response;
-  }
   
   // Verifica se é landing page
   if (isLandingPage(host, pathname)) {
