@@ -4,13 +4,13 @@ import { TenantSlug } from './types/tenant';
 import { createServerClient } from './lib/supabase';
 
 /**
- * MIDDLEWARE SIMPLIFICADO
+ * PROXY (Next.js 16+)
  * 
  * Agora usamos rotas com slug em vez de subdomínios:
  * - agemda.vercel.app/leticianails → página pública
  * - agemda.vercel.app/leticianails/admin → painel admin
  * 
- * O middleware não precisa mais detectar subdomínios.
+ * O proxy não precisa mais detectar subdomínios.
  * A validação do tenant é feita no layout da rota [slug].
  */
 
@@ -126,16 +126,16 @@ async function validateTenant(slug: TenantSlug): Promise<{ exists: boolean; tena
 }
 
 /**
- * Middleware principal
+ * Proxy principal (Next.js 16+)
  */
-export async function middleware(request: NextRequest) {
-  // Middleware simplificado - não precisa mais detectar subdomínios
+export async function proxy(request: NextRequest) {
+  // Proxy simplificado - não precisa mais detectar subdomínios
   // A validação do tenant é feita no layout da rota [slug]
   return NextResponse.next();
 }
 
 /**
- * Configuração do matcher do middleware
+ * Configuração do matcher do proxy
  * Aplica a todas as rotas exceto as já filtradas no código
  */
 export const config = {
