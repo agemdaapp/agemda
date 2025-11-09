@@ -1,9 +1,9 @@
+# Arquivos que não devem ser enviados para a Vercel
 node_modules
 .next
 .env.local
 .env*.local
+.git
+.vscode
 *.log
 .DS_Store
-coverage
-.nyc_output
-
